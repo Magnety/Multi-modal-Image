@@ -150,7 +150,7 @@ class OursNet(nn.Module):
         self.softmax = nn.Softmax(1)
     def forward(self, x):
         x = self.stem(x)
-
+        f1 = x
         f2 = self.fire2(x)
         f3 = self.fire3(f2) + f2
         f4 = self.fire4(f3)
@@ -172,7 +172,7 @@ class OursNet(nn.Module):
         x = self.avg(c10)
         x = x.view(x.size(0), -1)
         x = self.softmax(x)
-        return x,x1,x2,f2_1,f2_2,f4_1,f4_2,f6_1,f6_2,f9_1,f9_2
+        return x,f1,f2,f4,f6,f9
 
 def ours(class_num=2):
     return OursNet(class_num=class_num)
