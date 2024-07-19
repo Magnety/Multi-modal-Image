@@ -14,7 +14,7 @@ from ptflops import get_model_complexity_info
 from torchvision.utils import save_image
 
 from arch.convnext_first_cat import convnext_base as convnext_first_cat
-from arch.ours_backbone import oursnet as ours_backbone
+from arch.ours_backbone import ours as ours_backbone
 
 from arch.mobilenetv2_last_cat import mobilenetv2 as mobilenetv2_last_cat
 from arch.googlenet_last_cat import googlenet as googlenet_last_cat
