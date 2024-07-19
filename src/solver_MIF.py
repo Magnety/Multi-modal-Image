@@ -14,6 +14,8 @@ from ptflops import get_model_complexity_info
 from torchvision.utils import save_image
 
 from arch.convnext_first_cat import convnext_base as convnext_first_cat
+from arch.ours_backbone import oursnet as ours_backbone
+
 from arch.mobilenetv2_last_cat import mobilenetv2 as mobilenetv2_last_cat
 from arch.googlenet_last_cat import googlenet as googlenet_last_cat
 from arch.nasnet_last_cat import nasnet as nasnet_last_cat
@@ -100,7 +102,7 @@ class Solver(object):
         torch.backends.cudnn.benchmark = False
         """Build generator and discriminator."""
         if self.model_type == 'ours':
-            self.unet = ours()
+            self.unet = ours_backbone()
         elif self.model_type == 'resnet18_last_cat':
             self.unet = resnet18_last_cat()
         elif self.model_type == 'resnet18_first_cat':
