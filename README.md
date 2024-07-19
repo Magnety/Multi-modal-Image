@@ -62,7 +62,6 @@ Our dataset includes multimodal ultrasound images from 357 patients, with 312 ca
 
 Our experimental results demonstrate that FAMF-Net achieves significant improvements in accuracy, F1-score, and interpretability compared to existing methods. For detailed results and analysis, please refer to the paper.
 
-## Citation
 
-If you use this code in your research, please cite our paper:
+
 
