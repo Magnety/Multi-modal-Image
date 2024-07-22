@@ -108,7 +108,7 @@ if __name__ == '__main__':
         parser.add_argument('--modal', type=int, default=4)  # 0=2d 1=els 2=2d c els(last) 3=2d c els(first)  4=ours
 
         parser.add_argument('--mode', type=str, default='train')
-        parser.add_argument('--model_type', type=str, default='ours',)
+        parser.add_argument('--model_type', type=str, default='ours')
         parser.add_argument('--output_path', type=str,
                             default='/breast_multimodal_project/mda_output/fix_testset/fold_%d' % i)
         parser.add_argument('--data_path', type=str,
