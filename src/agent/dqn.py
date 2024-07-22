@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.autograd as autograd
 import numpy as np
 
-from arch.replay_buffers import BasicBuffer
+from .replay_buffers import BasicBuffer
 from .dqn_model import ConvDQN, DQN
 
 
