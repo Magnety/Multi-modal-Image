@@ -8,7 +8,7 @@ import random
 import time
 
 import warnings
-warnings.filterwarnings("ignore")  # 忽略UserWarning兼容性警告
+warnings.filterwarnings("ignore")  #
 def main(config):
     print("main")
 
@@ -108,17 +108,15 @@ if __name__ == '__main__':
         parser.add_argument('--modal', type=int, default=4)  # 0=2d 1=els 2=2d c els(last) 3=2d c els(first)  4=ours
 
         parser.add_argument('--mode', type=str, default='train')
-        parser.add_argument('--model_type', type=str, default='ours',
-                            help='U_Net/R2U_Net/AttU_Net/R2AttU_Net/Swin_Transformer/'
-                                 'resnet50/SC_Swin_Transformer/DarkNet/resnet18_fusion')
+        parser.add_argument('--model_type', type=str, default='ours',)
         parser.add_argument('--output_path', type=str,
-                            default='/home/ubuntu/liuyiyao/breast_multimodal_project/mda_output/fix_testset/fold_%d' % i)
+                            default='/breast_multimodal_project/mda_output/fix_testset/fold_%d' % i)
         parser.add_argument('--data_path', type=str,
-                            default='/home/ubuntu/liuyiyao/breast_multimodal_project/dataset/data')
+                            default='/breast_multimodal_project/dataset/data')
         parser.add_argument('--name_path', type=str,
-                            default='/home/ubuntu/liuyiyao/breast_multimodal_project/dataset/fix_testset/ac_k_fold_%d' % i)
+                            default='/breast_multimodal_project/dataset/fix_testset/ac_k_fold_%d' % i)
         parser.add_argument('--checkpoint', type=str,
-                            default='/home/ubuntu/liuyiyao/breast_multimodal_project/mini_output_80/ours_5000-0.000500-4750-0.8000_best.pkl')
+                            default='/breast_multimodal_project/mini_output_80/ours_5000-0.000500-4750-0.8000_best.pkl')
 
         parser.add_argument('--model_path', type=str, default='')
         parser.add_argument('--result_path', type=str, default='')
