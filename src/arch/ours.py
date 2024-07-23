@@ -124,18 +124,14 @@ class MutualAttention_register(nn.Module):
                 threshold = 0.1  # Example threshold, should be adjusted based on the data
                 directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
     
-                # 将最大值位置加入区域
                 region.append((x_max.item(), y_max.item()))
     
-                # 检查四个方向
                 for direction in directions:
                     x, y = x_max.item(), y_max.item()
                     while 0 <= x < H and 0 <= y < W:
-                        # 计算当前位置的梯度
                         gradients = torch.gradient(F_CAM)
                         abs_gradients = [torch.abs(g[x, y]) for g in gradients]
     
-                        # 检查梯度是否小于阈值
                         if all(ag < threshold for ag in abs_gradients):
                             region.append((x, y))
                             x += direction[0]
