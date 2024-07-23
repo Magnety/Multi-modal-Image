@@ -1,3 +1,5 @@
+
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -69,7 +71,8 @@ class GaussianEdgeExtractor(nn.Module):
 
         return magnitude
 
-
+def unravel_index(indices, shape):
+    return tuple(torch.tensor(x) for x in np.unravel_index(indices, shape))
 def compute_local_color_moments(feature_maps, window_size=5):
     padding = window_size // 2
     unfolded_maps = F.unfold(feature_maps, window_size, padding=padding).view(feature_maps.size(0),
@@ -106,71 +109,89 @@ class MutualAttention_register(nn.Module):
         mask1 = torch.zeros_like(feat1)
         max_indices1 = torch.zeros((cam1.shape[0], 2))
         max_indices2 = torch.zeros((cam2.shape[0], 2))
-
-        B, C, H, W = cam1.shape
-        # Iterate over each batch
-        for i in range(B):
-            F_CAM = cam1[i, 0, :, :]
-
-            # B-mode Image Center Calculation
-            # Step 1: Find the coordinates of the maximum value in F_CAM
-            x_max, y_max = np.unravel_index(F_CAM.argmax().item(), F_CAM.shape)
-
-            # Step 2: Expand outward from (x_max, y_max) until a significant gradient change is observed
-            region = []
-            threshold = 0.1  # Example threshold, should be adjusted based on the data
-            for x in range(H):
-                for y in range(W):
-                    if np.abs(np.gradient(F_CAM[x, y])) < threshold:
-                        region.append((x, y))
-
-            # Step 3: Compute the bounding rectangle of the expanded region and find its center
-            if region:
-                x_coords, y_coords = zip(*region)
-                x1 = int(np.mean(x_coords))
-                y1 = int(np.mean(y_coords))
-            else:
-                x1, y1 = x_max, y_max  # Fallback to the max value position if no region is found
-
-            # SWE Image Center Calculation
-            # Step 1: Initialize S_max
-            F_CAM = cam2[i, 0, :, :]
-            S_max = 0
-            x2, y2 = 0, 0
-
-            # Step 2: Iterate over a sliding window on F_CAM
-            window_size = (H // 4, W // 4)  # Example window size, should be adjusted based on the data
-            for x in range(0, H - window_size[0] + 1):
-                for y in range(0, W - window_size[1] + 1):
-                    window = F_CAM[x:x + window_size[0], y:y + window_size[1]]
-                    S = window.sum().item()
-                    if S > S_max:
-                        S_max = S
-                        x2, y2 = x + window_size[0] // 2, y + window_size[1] // 2
-
-
-            # Apply the transformation on cam2 using the translation vector
-            # Save tumor centers
-            max_indices2[i][0] = x2
-            max_indices2[i][1] = y2
-            # cam1 to be centered
-            max_indices1[i][0] = x1
-            max_indices1[i][1] = y1
-            h_cam1, w_cam1 = cam1.shape[2], cam1.shape[3]
-            h_cam2, w_cam2 = cam2.shape[2], cam2.shape[3]
-
-            top1 = max(0, x1 - h_cam1 // 8)
-            bottom1 = min(h_cam1, x1 + h_cam1 // 8)
-            left1 = max(0, y1 - w_cam1 // 8)
-            right1 = min(w_cam1, y1 + w_cam1 // 8)
-
-            top2 = max(0, x2 - h_cam2 // 8)
-            bottom2 = min(h_cam2, x2 + h_cam2 // 8)
-            left2 = max(0, y2 - w_cam2 // 8)
-            right2 = min(w_cam2, y2 + w_cam2 // 8)
-
-            mask1[i, :, top1:bottom1, left1:right1] = 1
-            mask2[i, :, top2:bottom2, left2:right2] = 1
+        if warm_flag == 1:
+            B, C, H, W = cam1.shape
+            # Iterate over each batch
+            for i in range(B):
+                F_CAM = cam1[i, 0, :, :]
+    
+                # B-mode Image Center Calculation
+                # Step 1: Find the coordinates of the maximum value in F_CAM
+                x_max, y_max = unravel_index(F_CAM.argmax().item(), F_CAM.shape)
+    
+                # Step 2: Expand outward from (x_max, y_max) until a significant gradient change is observed
+                region = []
+                threshold = 0.1  # Example threshold, should be adjusted based on the data
+                directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    
+                # 将最大值位置加入区域
+                region.append((x_max.item(), y_max.item()))
+    
+                # 检查四个方向
+                for direction in directions:
+                    x, y = x_max.item(), y_max.item()
+                    while 0 <= x < H and 0 <= y < W:
+                        # 计算当前位置的梯度
+                        gradients = torch.gradient(F_CAM)
+                        abs_gradients = [torch.abs(g[x, y]) for g in gradients]
+    
+                        # 检查梯度是否小于阈值
+                        if all(ag < threshold for ag in abs_gradients):
+                            region.append((x, y))
+                            x += direction[0]
+                            y += direction[1]
+                        else:
+                            break
+    
+                # Step 3: Compute the bounding rectangle of the expanded region and find its center
+                if region:
+                    x_coords, y_coords = zip(*region)
+                    x_coords_tensor = torch.tensor(x_coords, dtype=torch.float)
+                    y_coords_tensor = torch.tensor(y_coords, dtype=torch.float)
+                    x1 = int(torch.mean(x_coords_tensor).item())
+                    y1 = int(torch.mean(y_coords_tensor).item())
+                else:
+                    x1, y1 = x_max, y_max  # Fallback to the max value position if no region is found
+    
+                # SWE Image Center Calculation
+                # Step 1: Initialize S_max
+                F_CAM = cam2[i, 0, :, :]
+                S_max = 0
+                x2, y2 = 0, 0
+    
+                # Step 2: Iterate over a sliding window on F_CAM
+                window_size = (H // 4, W // 4)  # Example window size, should be adjusted based on the data
+                for x in range(0, H - window_size[0] + 1):
+                    for y in range(0, W - window_size[1] + 1):
+                        window = F_CAM[x:x + window_size[0], y:y + window_size[1]]
+                        S = window.sum().item()
+                        if S > S_max:
+                            S_max = S
+                            x2, y2 = x + window_size[0] // 2, y + window_size[1] // 2
+    
+    
+                # Apply the transformation on cam2 using the translation vector
+                # Save tumor centers
+                max_indices2[i][0] = x2
+                max_indices2[i][1] = y2
+                # cam1 to be centered
+                max_indices1[i][0] = x1
+                max_indices1[i][1] = y1
+                h_cam1, w_cam1 = cam1.shape[2], cam1.shape[3]
+                h_cam2, w_cam2 = cam2.shape[2], cam2.shape[3]
+    
+                top1 = max(0, x1 - h_cam1 // 8)
+                bottom1 = min(h_cam1, x1 + h_cam1 // 8)
+                left1 = max(0, y1 - w_cam1 // 8)
+                right1 = min(w_cam1, y1 + w_cam1 // 8)
+    
+                top2 = max(0, x2 - h_cam2 // 8)
+                bottom2 = min(h_cam2, x2 + h_cam2 // 8)
+                left2 = max(0, y2 - w_cam2 // 8)
+                right2 = min(w_cam2, y2 + w_cam2 // 8)
+    
+                mask1[i, :, top1:bottom1, left1:right1] = 1
+                mask2[i, :, top2:bottom2, left2:right2] = 1
 
         cam2_move = (max_indices2 - max_indices1) / (cam2.shape[2] // 2)
         cam1_move = (max_indices1 - max_indices2) / (cam1.shape[2] // 2)
@@ -217,14 +238,14 @@ class MutualAttention_register(nn.Module):
         feat1_apply =(f2_attn@feat1_).contiguous()
         feat1_apply = feat1_apply.view(B,C,H,W)
         f1_attn = F.softmax(feat1_edge_move@feat2_.transpose(-2, -1),-1)
-        
+
 
         feat2_apply =(f1_attn@feat2_).contiguous()
         feat2_apply = feat2_apply.view(B,C,H,W)
         feat1_apply = self.relu(feat1_apply)
         feat2_apply = self.relu(feat2_apply)
 
-        
+
         if warm_flag==0:
             return feat1, feat2,affine_grid1,affine_grid2,feat1_edge,feat2_color,f1_attn,f2_attn,feat1, feat2
 
@@ -264,7 +285,7 @@ class Fire(nn.Module):
 
         return x
 
-class OursNet(nn.Module):
+class SqueezeNet(nn.Module):
 
     """mobile net with simple bypass"""
     def __init__(self, class_num=100):
@@ -339,16 +360,18 @@ class OursNet(nn.Module):
         f7_2 = self.fire7_2(f6_2) + f6_2
         f8_2 = self.fire8_2(f7_2)
         f8_2 = self.maxpool(f8_2)
-        
+
         f9_1 = self.fire9_1(f8_1)
         f9_2 = self.fire9_2(f8_2)
-        
+
         output = torch.cat((f9_1, f9_2), 1)
         c10 = self.conv10(output)
         x = self.avg(c10)
-       
-        x = x.view(x.size(0), -1)
-        return x,x1,x2,g_att_output_2,e_att_output_2,affin_grid2_1,affin_grid2_2,edge_2,color_2,f1_attn,f2_attn,g_att_output_2_before,e_att_output_2_before,x1,x2,f2_1,f2_2,f4_1,f4_2,f6_1,f6_2,f9_1,f9_2
 
-def ours(class_num=2):
-    return OursNet(class_num=class_num)
+        x = x.view(x.size(0), -1)
+        x = self.softmax(x)
+
+        return x,x1,x2,g_att_output_2,e_att_output_2,affin_grid2_1,affin_grid2_2,edge_2,color_2,f1_attn,f2_attn,g_att_output_2_before,e_att_output_2_before
+
+def squeezenet(class_num=2):
+    return SqueezeNet(class_num=class_num)
