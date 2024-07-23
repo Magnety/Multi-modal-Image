@@ -281,7 +281,7 @@ class Fire(nn.Module):
 
         return x
 
-class SqueezeNet(nn.Module):
+class OursNet(nn.Module):
 
     """mobile net with simple bypass"""
     def __init__(self, class_num=100):
@@ -369,5 +369,5 @@ class SqueezeNet(nn.Module):
 
         return x,x1,x2,g_att_output_2,e_att_output_2,affin_grid2_1,affin_grid2_2,edge_2,color_2,f1_attn,f2_attn,g_att_output_2_before,e_att_output_2_before
 
-def squeezenet(class_num=2):
-    return SqueezeNet(class_num=class_num)
+def ours(class_num=2):
+    return OursNet(class_num=class_num)
