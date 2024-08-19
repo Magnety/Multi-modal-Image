@@ -1,6 +1,6 @@
 # FAMF-Net: Feature Alignment Mutual Attention Fusion with Region Awareness for Breast Cancer Diagnosis via Imbalanced Data
 
-This repository contains the code for our paper "FAMF-Net: Feature Alignment Mutual Attention Fusion with Region Awareness for Breast Cancer Diagnosis via Imbalanced Data," published in IEEE Transactions on Medical Imaging.
+This repository contains the code for our paper "FAMF-Net: Feature Alignment Mutual Attention Fusion with Region Awareness for Breast Cancer Diagnosis via Imbalanced Data." 
 
 ## Introduction
 
