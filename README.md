@@ -46,18 +46,6 @@ Our dataset includes multimodal ultrasound images from 357 patients, with 312 ca
     pip install -r requirements.txt
     ```
 
-## Usage
-
-1. **Data Preparation**: Ensure your data is in the correct format as specified in the paper.
-2. **Training**: Run the training script with appropriate parameters:
-    ```bash
-    python train.py --config configs/config.yaml
-    ```
-3. **Evaluation**: Evaluate the model on the test set:
-    ```bash
-    python evaluate.py --model_path models/best_model.pth
-    ```
-
 ## Results
 
 Our experimental results demonstrate that FAMF-Net achieves significant improvements in accuracy, F1-score, and interpretability compared to existing methods. For detailed results and analysis, please refer to the paper.
