@@ -112,82 +112,67 @@ class MutualAttention_register(nn.Module):
         if warm_flag == 1:
             B, C, H, W = cam1.shape
             # Iterate over each batch
-            for i in range(B):
-                F_CAM = cam1[i, 0, :, :]
-    
-                # B-mode Image Center Calculation
-                # Step 1: Find the coordinates of the maximum value in F_CAM
-                x_max, y_max = unravel_index(F_CAM.argmax().item(), F_CAM.shape)
-    
-                # Step 2: Expand outward from (x_max, y_max) until a significant gradient change is observed
-                region = []
-                threshold = 0.1  # Example threshold, should be adjusted based on the data
-                directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    
-                region.append((x_max.item(), y_max.item()))
-    
-                for direction in directions:
-                    x, y = x_max.item(), y_max.item()
-                    while 0 <= x < H and 0 <= y < W:
-                        gradients = torch.gradient(F_CAM)
-                        abs_gradients = [torch.abs(g[x, y]) for g in gradients]
-    
-                        if all(ag < threshold for ag in abs_gradients):
-                            region.append((x, y))
-                            x += direction[0]
-                            y += direction[1]
-                        else:
-                            break
-    
-                # Step 3: Compute the bounding rectangle of the expanded region and find its center
-                if region:
-                    x_coords, y_coords = zip(*region)
-                    x_coords_tensor = torch.tensor(x_coords, dtype=torch.float)
-                    y_coords_tensor = torch.tensor(y_coords, dtype=torch.float)
-                    x1 = int(torch.mean(x_coords_tensor).item())
-                    y1 = int(torch.mean(y_coords_tensor).item())
-                else:
-                    x1, y1 = x_max, y_max  # Fallback to the max value position if no region is found
-    
-                # SWE Image Center Calculation
-                # Step 1: Initialize S_max
-                F_CAM = cam2[i, 0, :, :]
-                S_max = 0
-                x2, y2 = 0, 0
-    
-                # Step 2: Iterate over a sliding window on F_CAM
-                window_size = (H // 4, W // 4)  # Example window size, should be adjusted based on the data
-                for x in range(0, H - window_size[0] + 1):
-                    for y in range(0, W - window_size[1] + 1):
-                        window = F_CAM[x:x + window_size[0], y:y + window_size[1]]
-                        S = window.sum().item()
-                        if S > S_max:
-                            S_max = S
-                            x2, y2 = x + window_size[0] // 2, y + window_size[1] // 2
-    
-    
-                # Apply the transformation on cam2 using the translation vector
-                # Save tumor centers
-                max_indices2[i][0] = x2
-                max_indices2[i][1] = y2
-                # cam1 to be centered
-                max_indices1[i][0] = x1
-                max_indices1[i][1] = y1
-                h_cam1, w_cam1 = cam1.shape[2], cam1.shape[3]
-                h_cam2, w_cam2 = cam2.shape[2], cam2.shape[3]
-    
-                top1 = max(0, x1 - h_cam1 // 8)
-                bottom1 = min(h_cam1, x1 + h_cam1 // 8)
-                left1 = max(0, y1 - w_cam1 // 8)
-                right1 = min(w_cam1, y1 + w_cam1 // 8)
-    
-                top2 = max(0, x2 - h_cam2 // 8)
-                bottom2 = min(h_cam2, x2 + h_cam2 // 8)
-                left2 = max(0, y2 - w_cam2 // 8)
-                right2 = min(w_cam2, y2 + w_cam2 // 8)
-    
-                mask1[i, :, top1:bottom1, left1:right1] = 1
-                mask2[i, :, top2:bottom2, left2:right2] = 1
+                    for i in range(B):
+            F_CAM1 = cam1[i, 0, :, :]
+            F_CAM2 = cam2[i, 0, :, :]
+
+            H, W = F_CAM1.shape
+
+            
+            x_max, y_max = np.unravel_index(np.argmax(F_CAM1), F_CAM1.shape)
+
+            gradient_x = np.gradient(F_CAM1, axis=0)
+            gradient_y = np.gradient(F_CAM1, axis=1)
+            gradient_magnitude = np.hypot(gradient_x, gradient_y)
+
+            threshold = 0.2  # 
+            mask = gradient_magnitude < threshold
+
+            labeled_array, num_features = label(mask)
+            label_at_max = labeled_array[x_max, y_max]
+
+            if label_at_max != 0:
+                region_slice = find_objects(labeled_array == label_at_max)[0]
+                x1 = (region_slice[0].start + region_slice[0].stop) // 2
+                y1 = (region_slice[1].start + region_slice[1].stop) // 2
+            else:
+                x1, y1 = x_max, y_max
+
+            
+            window_size = (H // 4, W // 4)  
+            kernel = np.ones(window_size)
+            conv_result = convolve2d(F_CAM2, kernel, mode='valid')
+
+            x2_conv, y2_conv = np.unravel_index(np.argmax(conv_result), conv_result.shape)
+            x2 = x2_conv + window_size[0] // 2
+            y2 = y2_conv + window_size[1] // 2
+
+            
+
+            max_indices1[i][0] = x1
+            max_indices1[i][1] = y1
+
+            max_indices2[i][0] = x2
+            max_indices2[i][1] = y2
+
+            h_cam1, w_cam1 = F_CAM1.shape
+            h_cam2, w_cam2 = F_CAM2.shape
+
+            region_size1 = h_cam1 // 4
+            region_size2 = h_cam2 // 4
+
+            top1 = max(0, x1 - region_size1 // 2)
+            bottom1 = min(h_cam1, x1 + region_size1 // 2)
+            left1 = max(0, y1 - region_size1 // 2)
+            right1 = min(w_cam1, y1 + region_size1 // 2)
+
+            top2 = max(0, x2 - region_size2 // 2)
+            bottom2 = min(h_cam2, x2 + region_size2 // 2)
+            left2 = max(0, y2 - region_size2 // 2)
+            right2 = min(w_cam2, y2 + region_size2 // 2)
+
+            mask1[i, :, top1:bottom1, left1:right1] = 1
+            mask2[i, :, top2:bottom2, left2:right2] = 1
 
         cam2_move = (max_indices2 - max_indices1) / (cam2.shape[2] // 2)
         cam1_move = (max_indices1 - max_indices2) / (cam1.shape[2] // 2)
