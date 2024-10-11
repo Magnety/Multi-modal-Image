@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from scipy.ndimage import label, find_objects
+from scipy.signal import convolve2d
 class GaussianEdgeExtractor(nn.Module):
     def __init__(self,channel, kernel_size=5, sigma=1.0):
         super(GaussianEdgeExtractor, self).__init__()
@@ -110,67 +112,67 @@ class MutualAttention_register(nn.Module):
         if warm_flag == 1:
             B, C, H, W = cam1.shape
             # Iterate over each batch
-                    for i in range(B):
-            F_CAM1 = cam1[i, 0, :, :]
-            F_CAM2 = cam2[i, 0, :, :]
-
-            H, W = F_CAM1.shape
-
-
-            x_max, y_max = np.unravel_index(np.argmax(F_CAM1), F_CAM1.shape)
-
-            gradient_x = np.gradient(F_CAM1, axis=0)
-            gradient_y = np.gradient(F_CAM1, axis=1)
-            gradient_magnitude = np.hypot(gradient_x, gradient_y)
-
-            threshold = 0.2  # 
-            mask = gradient_magnitude < threshold
-
-            labeled_array, num_features = label(mask)
-            label_at_max = labeled_array[x_max, y_max]
-
-            if label_at_max != 0:
-                region_slice = find_objects(labeled_array == label_at_max)[0]
-                x1 = (region_slice[0].start + region_slice[0].stop) // 2
-                y1 = (region_slice[1].start + region_slice[1].stop) // 2
-            else:
-                x1, y1 = x_max, y_max
-
-
-            window_size = (H // 4, W // 4)  
-            kernel = np.ones(window_size)
-            conv_result = convolve2d(F_CAM2, kernel, mode='valid')
-
-            x2_conv, y2_conv = np.unravel_index(np.argmax(conv_result), conv_result.shape)
-            x2 = x2_conv + window_size[0] // 2
-            y2 = y2_conv + window_size[1] // 2
-
-
-
-            max_indices1[i][0] = x1
-            max_indices1[i][1] = y1
-
-            max_indices2[i][0] = x2
-            max_indices2[i][1] = y2
-
-            h_cam1, w_cam1 = F_CAM1.shape
-            h_cam2, w_cam2 = F_CAM2.shape
-
-            region_size1 = h_cam1 // 4
-            region_size2 = h_cam2 // 4
-
-            top1 = max(0, x1 - region_size1 // 2)
-            bottom1 = min(h_cam1, x1 + region_size1 // 2)
-            left1 = max(0, y1 - region_size1 // 2)
-            right1 = min(w_cam1, y1 + region_size1 // 2)
-
-            top2 = max(0, x2 - region_size2 // 2)
-            bottom2 = min(h_cam2, x2 + region_size2 // 2)
-            left2 = max(0, y2 - region_size2 // 2)
-            right2 = min(w_cam2, y2 + region_size2 // 2)
-
-            mask1[i, :, top1:bottom1, left1:right1] = 1
-            mask2[i, :, top2:bottom2, left2:right2] = 1
+            for i in range(B):
+                F_CAM1 = cam1[i, 0, :, :]
+                F_CAM2 = cam2[i, 0, :, :]
+    
+                H, W = F_CAM1.shape
+    
+    
+                x_max, y_max = np.unravel_index(np.argmax(F_CAM1), F_CAM1.shape)
+    
+                gradient_x = np.gradient(F_CAM1, axis=0)
+                gradient_y = np.gradient(F_CAM1, axis=1)
+                gradient_magnitude = np.hypot(gradient_x, gradient_y)
+    
+                threshold = 0.2  # 
+                mask = gradient_magnitude < threshold
+    
+                labeled_array, num_features = label(mask)
+                label_at_max = labeled_array[x_max, y_max]
+    
+                if label_at_max != 0:
+                    region_slice = find_objects(labeled_array == label_at_max)[0]
+                    x1 = (region_slice[0].start + region_slice[0].stop) // 2
+                    y1 = (region_slice[1].start + region_slice[1].stop) // 2
+                else:
+                    x1, y1 = x_max, y_max
+    
+    
+                window_size = (H // 4, W // 4)  
+                kernel = np.ones(window_size)
+                conv_result = convolve2d(F_CAM2, kernel, mode='valid')
+    
+                x2_conv, y2_conv = np.unravel_index(np.argmax(conv_result), conv_result.shape)
+                x2 = x2_conv + window_size[0] // 2
+                y2 = y2_conv + window_size[1] // 2
+    
+    
+    
+                max_indices1[i][0] = x1
+                max_indices1[i][1] = y1
+    
+                max_indices2[i][0] = x2
+                max_indices2[i][1] = y2
+    
+                h_cam1, w_cam1 = F_CAM1.shape
+                h_cam2, w_cam2 = F_CAM2.shape
+    
+                region_size1 = h_cam1 // 4
+                region_size2 = h_cam2 // 4
+    
+                top1 = max(0, x1 - region_size1 // 2)
+                bottom1 = min(h_cam1, x1 + region_size1 // 2)
+                left1 = max(0, y1 - region_size1 // 2)
+                right1 = min(w_cam1, y1 + region_size1 // 2)
+    
+                top2 = max(0, x2 - region_size2 // 2)
+                bottom2 = min(h_cam2, x2 + region_size2 // 2)
+                left2 = max(0, y2 - region_size2 // 2)
+                right2 = min(w_cam2, y2 + region_size2 // 2)
+    
+                mask1[i, :, top1:bottom1, left1:right1] = 1
+                mask2[i, :, top2:bottom2, left2:right2] = 1
 
         cam2_move = (max_indices2 - max_indices1) / (cam2.shape[2] // 2)
         cam1_move = (max_indices1 - max_indices2) / (cam1.shape[2] // 2)
